@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>天気APIテスト</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    #map { height: 300px; }
+  </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-4">
+  <h2 class="mb-3">天気APIテストページ</h2>
+
+  <!-- ✅ Login Form -->
+  <div class="card mb-3">
+    <div class="card-header">ログイン</div>
+    <div class="card-body">
+      <input type="text" id="username" class="form-control mb-2" placeholder="ユーザー名 (admin)" value="admin">
+      <input type="password" id="password" class="form-control mb-2" placeholder="パスワード (password)" value="password" >
+      <button onclick="login()" class="btn btn-primary w-100">ログイン</button>
+      <small class="text-muted d-block mt-2">トークン: <span id="token" class="text-break"></span></small>
+    </div>
+  </div>
+
+  <!-- ✅ Location and City Form -->
+  <div class="card mb-3">
+    <div class="card-header">都市または緯度経度の入力</div>
+    <div class="card-body">
+      <input type="text" id="city" class="form-control mb-2" placeholder="都市名 (例: Tokyo)">
+      <div class="row g-2 mb-2">
+        <div class="col"><input type="text" id="lat" class="form-control" placeholder="緯度"></div>
+        <div class="col"><input type="text" id="lon" class="form-control" placeholder="経度"></div>
+      </div>
+      <button class="btn btn-outline-secondary w-100 mb-2" onclick="getLocation()">📍 現在地から取得</button>
+      <div id="map" class="mb-2"></div>
+    </div>
+  </div>
+
+  <!-- ✅ API Buttons -->
+  <div class="card mb-3">
+    <div class="card-header">APIテスト</div>
+    <div class="card-body d-grid gap-2">
+      <button class="btn btn-success" onclick="callApi('/api/weather?city=' + getCity())">現在の天気</button>
+      <button class="btn btn-primary" onclick="callApi('/api/weather/forecast?city=' + getCity())">天気予報</button>
+      <button class="btn btn-info" onclick="callApi('/api/weather/geo?lat=' + getLat() + '&lon=' + getLon())">現在地の天気</button>
+      <button class="btn btn-warning" onclick="callApi('/api/weather/alert?city=' + getCity())">雨アラート</button>
+      <button class="btn btn-dark" onclick="callApi('/api/weather/air?lat=' + getLat() + '&lon=' + getLon())">空気質 (AQI)</button>
+    </div>
+  </div>
+
+  <!-- ✅ API Response -->
+  <div class="card">
+    <div class="card-header">APIレスポンス</div>
+    <div class="card-body">
+      <pre id="result" class="bg-body-tertiary p-2 rounded"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 地図読み込み -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+let jwtToken = "";
+
+// ログイン処理
+function login() {
+  axios.post('/login', {
+    username: document.getElementById('username').value,
+    password: document.getElementById('password').value
+  }).then(res => {
+    jwtToken = res.data.access_token;
+    document.getElementById('token').textContent = jwtToken;
+    alert("ログイン成功！");
+  }).catch(err => {
+    alert("ログイン失敗: " + err.response.data.msg);
+  });
+}
+
+// 共通APIコール処理
+function callApi(url) {
+  axios.get(url, {
+    headers: { Authorization: "Bearer " + jwtToken }
+  }).then(res => {
+    document.getElementById("result").textContent = JSON.stringify(res.data, null, 2);
+  }).catch(err => {
+    document.getElementById("result").textContent = "エラー: " + err;
+  });
+}
+
+// 入力値取得
+function getCity() {
+  return document.getElementById("city").value;
+}
+function getLat() {
+  return document.getElementById("lat").value;
+}
+function getLon() {
+  return document.getElementById("lon").value;
+}
+
+// 位置情報取得
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      document.getElementById("lat").value = pos.coords.latitude;
+      document.getElementById("lon").value = pos.coords.longitude;
+      map.setView([pos.coords.latitude, pos.coords.longitude], 10);
+      L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map)
+        .bindPopup("現在地").openPopup();
+    }, () => alert("位置情報取得失敗"));
+  } else {
+    alert("この端末では位置情報が利用できません");
+  }
+}
+
+// Leaflet.js 地図初期化
+const map = L.map('map').setView([35.681236, 139.767125], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+map.on('click', e => {
+  document.getElementById("lat").value = e.latlng.lat.toFixed(6);
+  document.getElementById("lon").value = e.latlng.lng.toFixed(6);
+  L.popup().setLatLng(e.latlng).setContent("選択された位置").openOn(map);
+});
+</script>
+
+</body>
+</html>
