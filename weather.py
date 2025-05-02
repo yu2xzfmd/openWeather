@@ -5,18 +5,24 @@ import os
 
 
 # APIキーの読み込み
-def load_api_key(filepath="apikey.txt"):
+def load_api_key(filepath=None):
+    if filepath is None:
+        # このファイルの場所を基準にフルパスにする
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        filepath = os.path.join(base_dir, "apikey.txt")
+    
     try:
         with open(filepath, "r") as file:
             return file.read().strip()
     except FileNotFoundError:
         raise RuntimeError(f"API key file '{filepath}' not found.")
 
+
 weather_bp = Blueprint('weather', __name__, url_prefix='/api')
-@weather_bp.route('/weather', methods=['GET'])
 
 API_KEY = load_api_key()
 
+@weather_bp.route('/weather', methods=['GET'])
 @jwt_required()
 def get_weather():
     city = request.args.get('city')
